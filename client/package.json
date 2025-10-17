@@ -1,3 +1,0 @@
-npx create-react-app client --template typescript
-cd client
-npm install axios react-router-dom chart.js react-chartjs-2
