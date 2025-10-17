@@ -1,0 +1,8 @@
+{
+  "name": "mfa-backend",
+  "version": "1.0.0",
+  "devDependencies": {
+    "@faker-js/faker": "^8.0.2",
+    "prisma": "^4.0.0"
+  }
+}

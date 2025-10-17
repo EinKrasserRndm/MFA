@@ -1,0 +1,44 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/**
+ * model:
+ * user(id, name, email(unique),role(admin, user), password)
+ * weather(id, date, temperature, windspeed, humidity, pressure, rainfall)
+ */
+
+model User {
+  id       String @id @default(cuid())
+  name     String
+  email    String @unique
+  role     Role   @default(user)
+  password String
+}
+
+enum Role {
+  admin
+  user
+}
+
+model Weather {
+  id          String   @id @default(cuid())
+  date        DateTime
+  temperature Float
+  windspeed   Float
+  humidity    Float
+  pressure    Float
+  rainfall    Float
+}
