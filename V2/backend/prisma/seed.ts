@@ -1,4 +1,4 @@
-import { PrismaClient } from './generated/prisma';
+import { PrismaClient } from '../generated/prisma';
 import { faker } from '@faker-js/faker';
 import * as readline from 'readline';
 
@@ -13,7 +13,7 @@ async function main() {
         name: faker.person.fullName(),
         email: faker.internet.email().toLowerCase(),
         role: faker.helpers.arrayElement(roles),
-        password: faker.internet.password(10),
+        password: faker.internet.password({ length: 10, memorable: true }),
       },
     });
   }
@@ -38,11 +38,16 @@ async function main() {
 
       let obj;
       try {
-        obj = JSON.parse(trimmed);
-      } catch (e) {
-        console.error('Invalid JSON — try again:', e.message);
-        return;
-      }
+  obj = JSON.parse(trimmed);
+} catch (e) {
+  // ✅ Safe way to handle unknown error type
+  if (e instanceof Error) {
+    console.error('Invalid JSON – try again:', e.message);
+  } else {
+    console.error('Invalid JSON – try again:', String(e)); // fallback if not Error
+  }
+  return;
+}
 
       const { date, temperature, windspeed, humidity, pressure, rainfall } = obj;
       if (!date || temperature === undefined || windspeed === undefined || humidity === undefined || pressure === undefined || rainfall === undefined) {
@@ -69,8 +74,14 @@ async function main() {
         });
         console.log('Inserted weather entry for', parsedDate.toISOString());
       } catch (e) {
-        console.error('DB error:', e.message);
-      }
+  // ✅ Safe way to handle unknown error type
+  if (e instanceof Error) {
+    console.error('Some error occurred:', e.message);
+  } else {
+    console.error('Some error occurred:', String(e)); // fallback if not Error
+  }
+  return;
+}
     });
 
     rl.on('close', () => {
