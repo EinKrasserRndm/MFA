@@ -35,22 +35,41 @@
     .card:hover {
       transform: translateY(-5px);
     }
-    footer {
-      text-align: center;
-      padding: 1rem 0;
-      font-size: 0.9rem;
-      color: #555;
-      background: #f8f9fa;
-      margin-top: 40px;
-    }
     .login-section {
-      max-width: 400px;
+      max-width: 450px;
       margin: 60px auto;
     }
     .role-hint {
       font-size: 0.85rem;
       color: #6c757d;
-      margin-top: 5px;
+      margin-top: 10px;
+    }
+    .auth-toggle {
+      text-align: center;
+      margin-top: 15px;
+    }
+    .modal {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 9999;
+    }
+    .modal-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      max-width: 500px;
+      width: 90%;
+    }
+    .back-btn {
+      margin-bottom: 20px;
     }
   </style>
 </head>
@@ -60,7 +79,7 @@
   <div class="container d-flex flex-wrap justify-content-between align-items-center">
     <h2 class="mb-0">Wettertagebuch</h2>
     <div id="authStatus">
-      <button class="btn btn-outline-primary btn-sm" onclick="showSection('login')">Login</button>
+      <button class="btn btn-outline-primary btn-sm" onclick="showSection('auth')">Login / Registrieren</button>
     </div>
   </div>
 </header>
@@ -72,36 +91,40 @@
     <div class="text-center">
       <h1 class="section-title">Willkommen im Wettertagebuch!</h1>
       <div class="row mt-5 justify-content-center g-4" id="homeCards">
-        <!-- Will be filled by JS based on role -->
+        <!-- Filled dynamically -->
       </div>
     </div>
   </section>
 
-  <!-- LOGIN -->
-  <section id="login" class="section">
+  <!-- LOGIN / REGISTER -->
+  <section id="auth" class="section">
     <div class="login-section">
-      <h2 class="text-center mb-4">Anmelden</h2>
-      <form id="loginForm">
-        <div class="mb-3">
-          <label for="loginEmail" class="form-label">Email *</label>
-          <input type="email" class="form-control" id="loginEmail" required>
+      <h2 class="text-center mb-4" id="authTitle">Anmelden</h2>
+      <form id="authForm">
+        <div class="mb-3" id="nameField" style="display:none;">
+          <label class="form-label">Name *</label>
+          <input type="text" class="form-control" id="authName">
         </div>
         <div class="mb-3">
-          <label for="loginPassword" class="form-label">Passwort *</label>
-          <input type="password" class="form-control" id="loginPassword" required>
+          <label class="form-label">Email *</label>
+          <input type="email" class="form-control" id="authEmail" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Passwort *</label>
+          <input type="password" class="form-control" id="authPassword" required>
         </div>
         <div class="d-grid">
-          <button type="submit" class="btn btn-primary">Anmelden</button>
+          <button type="submit" class="btn btn-primary" id="authSubmitBtn">Anmelden</button>
         </div>
-        <div id="loginMessage" class="mt-3"></div>
-        <div class="text-center mt-3">
-          <button type="button" class="btn btn-link" onclick="showSection('home')">Zurück</button>
+        <div id="authMessage" class="mt-3"></div>
+        <div class="auth-toggle">
+          <button type="button" class="btn btn-link p-0" id="toggleAuth">Noch kein Konto? Registrieren</button>
+          <button type="button" class="btn btn-link p-0" id="backToLogin" style="display:none;">Zurück zum Login</button>
         </div>
       </form>
       <div class="role-hint">
-        Test-Daten:<br>
-        Admin: admin@example.com / admin123<br>
-        User: user@example.com / user123
+        Testdaten:<br>
+        Admin: <code>admin@example.com</code> / <code>admin123</code>
       </div>
     </div>
   </section>
@@ -191,12 +214,54 @@
 
 </main>
 
+<!-- EDIT MODAL -->
+<div id="editModal" class="modal">
+  <div class="modal-content">
+    <h5>Wettereintrag bearbeiten</h5>
+    <form id="editForm">
+      <input type="hidden" id="editId">
+      <div class="mb-3">
+        <label class="form-label">Datum *</label>
+        <input type="date" class="form-control" id="editDatum" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Temperatur (°C) *</label>
+        <input type="number" class="form-control" id="editTemperatur" step="0.1" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Regen</label>
+        <select class="form-select" id="editRegen">
+          <option value="Nein">Nein</option>
+          <option value="Ja">Ja</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Luftfeuchtigkeit (%)</label>
+        <input type="number" class="form-control" id="editLuftfeuchtigkeit" min="0" max="100" step="0.1">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Luftdruck (hPa)</label>
+        <input type="number" class="form-control" id="editLuftdruck" step="0.1">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Windgeschwindigkeit (km/h)</label>
+        <input type="number" class="form-control" id="editWindgeschwindigkeit" step="0.1">
+      </div>
+      <div class="d-flex justify-content-between">
+        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Abbrechen</button>
+        <button type="submit" class="btn btn-primary">Speichern</button>
+      </div>
+    </form>
+    <div id="editMessage" class="mt-3"></div>
+  </div>
+</div>
+
 <script>
 let currentUser = null;
+let isRegisterMode = false;
 
-// ========== UTILS ==========
+// ========== SECTION MANAGEMENT ==========
 function showSection(id) {
-  // Role-based access control
   if (id === 'erfassung' && currentUser?.role !== 'admin') {
     alert('Nur Admins dürfen Daten erfassen.');
     return;
@@ -216,8 +281,6 @@ function showSection(id) {
 
 function renderHomeCards() {
   const container = document.getElementById('homeCards');
-  container.innerHTML = '';
-
   const cards = [];
 
   if (currentUser?.role === 'admin') {
@@ -226,10 +289,7 @@ function renderHomeCards() {
       { title: 'Verwaltung', desc: 'Einträge bearbeiten oder löschen', action: 'verwaltung' }
     );
   }
-
-  cards.push(
-    { title: 'Auswertung', desc: 'Statistiken und Diagramme', action: 'auswertung' }
-  );
+  cards.push({ title: 'Auswertung', desc: 'Statistiken und Diagramme', action: 'auswertung' });
 
   container.innerHTML = cards.map(c => `
     <div class="col-md-4">
@@ -242,44 +302,99 @@ function renderHomeCards() {
   `).join('');
 }
 
-// ========== AUTH ==========
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const email = document.getElementById('loginEmail').value;
-  const password = document.getElementById('loginPassword').value;
-  const msg = document.getElementById('loginMessage');
+// ========== AUTHENTICATION ==========
+function toggleAuthMode() {
+  isRegisterMode = !isRegisterMode;
+  const title = document.getElementById('authTitle');
+  const submitBtn = document.getElementById('authSubmitBtn');
+  const nameField = document.getElementById('nameField');
+  const toggleBtn = document.getElementById('toggleAuth');
+  const backBtn = document.getElementById('backToLogin');
 
-  try {
-    const res = await fetch('http://localhost:4000/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await res.json();
-
-    if (res.ok) {
-      currentUser = data.user;
-      document.getElementById('authStatus').innerHTML = 
-        `Angemeldet als ${currentUser.name} (${currentUser.role}) • 
-         <button class="btn btn-outline-danger btn-sm" onclick="logout()">Logout</button>`;
-      showSection('home');
-    } else {
-      msg.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
-    }
-  } catch (err) {
-    msg.innerHTML = `<div class="alert alert-danger">Netzwerkfehler</div>`;
+  if (isRegisterMode) {
+    title.textContent = 'Registrieren';
+    submitBtn.textContent = 'Registrieren';
+    nameField.style.display = 'block';
+  } else {
+    title.textContent = 'Anmelden';
+    submitBtn.textContent = 'Anmelden';
+    nameField.style.display = 'none';
   }
-});
+
+  toggleBtn.style.display = isRegisterMode ? 'none' : 'inline-block';
+  backBtn.style.display = isRegisterMode ? 'inline-block' : 'none';
+  document.getElementById('authMessage').innerHTML = '';
+  document.getElementById('authForm').reset();
+}
+
+async function handleAuthSubmit(e) {
+  e.preventDefault();
+  const msg = document.getElementById('authMessage');
+  const email = document.getElementById('authEmail').value;
+  const password = document.getElementById('authPassword').value;
+
+  if (isRegisterMode) {
+    const name = document.getElementById('authName').value;
+    if (!name || !email || !password) {
+      msg.innerHTML = '<div class="alert alert-danger">Alle Felder sind erforderlich</div>';
+      return;
+    }
+
+    try {
+      const res = await fetch('http://localhost:4000/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        msg.innerHTML = '<div class="alert alert-success">Registrierung erfolgreich!</div>';
+        setTimeout(() => toggleAuthMode(), 2000);
+      } else {
+        msg.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+      }
+    } catch (err) {
+      msg.innerHTML = '<div class="alert alert-danger">Netzwerkfehler</div>';
+    }
+  } else {
+    if (!email || !password) {
+      msg.innerHTML = '<div class="alert alert-danger">Email und Passwort erforderlich</div>';
+      return;
+    }
+
+    try {
+      const res = await fetch('http://localhost:4000/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        currentUser = data.user;
+        document.getElementById('authStatus').innerHTML = 
+          `Angemeldet als ${currentUser.name} (${currentUser.role}) • 
+           <button class="btn btn-outline-danger btn-sm" onclick="logout()">Logout</button>`;
+        showSection('home');
+      } else {
+        msg.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+      }
+    } catch (err) {
+      msg.innerHTML = '<div class="alert alert-danger">Netzwerkfehler</div>';
+    }
+  }
+}
 
 function logout() {
   currentUser = null;
   document.getElementById('authStatus').innerHTML = 
-    '<button class="btn btn-outline-primary btn-sm" onclick="showSection(\'login\')">Login</button>';
+    '<button class="btn btn-outline-primary btn-sm" onclick="showSection(\'auth\')">Login / Registrieren</button>';
   showSection('home');
 }
 
-// ========== WEATHER FORM ==========
-document.getElementById('weatherForm').addEventListener('submit', async (e) => {
+// ========== WEATHER FORM (CREATE) ==========
+async function handleWeatherSubmit(e) {
   e.preventDefault();
   const payload = {
     date: new Date(document.getElementById('datum').value).toISOString(),
@@ -291,7 +406,6 @@ document.getElementById('weatherForm').addEventListener('submit', async (e) => {
   };
 
   const msg = document.getElementById('meldung');
-
   try {
     const res = await fetch('http://localhost:4000/weather', {
       method: 'POST',
@@ -301,7 +415,7 @@ document.getElementById('weatherForm').addEventListener('submit', async (e) => {
     const data = await res.json();
 
     if (res.ok) {
-      msg.innerHTML = '<div class="alert alert-success">Gespeichert!</div>';
+      msg.innerHTML = '<div class="alert alert-success">Wetterdaten gespeichert!</div>';
       document.getElementById('weatherForm').reset();
     } else {
       msg.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
@@ -309,11 +423,12 @@ document.getElementById('weatherForm').addEventListener('submit', async (e) => {
   } catch (err) {
     msg.innerHTML = '<div class="alert alert-danger">Netzwerkfehler</div>';
   }
-});
+}
 
-// ========== TABLE & STATS ==========
+// ========== DATA DISPLAY ==========
 async function loadTable() {
   const tbody = document.getElementById('datenTabelle');
+  if (!tbody) return;
   tbody.innerHTML = '<tr><td colspan="7" class="text-center">Lädt...</td></tr>';
 
   try {
@@ -324,29 +439,107 @@ async function loadTable() {
         <td>${d.date.split('T')[0]}</td>
         <td>${d.temperature}°C</td>
         <td>${d.rainfall > 0 ? 'Ja' : 'Nein'}</td>
-        <td>${d.humidity}%</td>
-        <td>${d.pressure}</td>
-        <td>${d.windspeed}</td>
-        <td><button class="btn btn-sm btn-danger" onclick="deleteEntry(${d.id})">Löschen</button></td>
+        <td>${d.humidity != null ? d.humidity + '%' : '-'}</td>
+        <td>${d.pressure != null ? d.pressure : '-'}</td>
+        <td>${d.windspeed != null ? d.windspeed : '-'}</td>
+        <td>
+          <button class="btn btn-sm btn-primary me-1" onclick="editEntry(${d.id})">Bearbeiten</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteEntry(${d.id})">Löschen</button>
+        </td>
       </tr>
     `).join('');
   } catch (err) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-danger">Fehler beim Laden</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-danger text-center">Fehler beim Laden</td></tr>';
   }
 }
 
+// ========== DELETE ==========
 async function deleteEntry(id) {
-  if (!confirm('Wirklich löschen?')) return;
+  if (!confirm('Möchten Sie diesen Eintrag wirklich löschen?')) return;
   try {
-    await fetch(`http://localhost:4000/weather/${id}`, { method: 'DELETE' });
-    loadTable();
+    const res = await fetch(`http://localhost:4000/weather/${id}`, { 
+      method: 'DELETE' 
+    });
+    const data = await res.json();
+    
+    if (res.ok) {
+      alert('Eintrag erfolgreich gelöscht!');
+      loadTable();
+    } else {
+      alert(data.error || 'Fehler beim Löschen');
+    }
   } catch (err) {
-    alert('Fehler beim Löschen');
+    alert('Netzwerkfehler: ' + err.message);
+  }
+}
+
+// ========== EDIT ==========
+async function editEntry(id) {
+  try {
+    const res = await fetch(`http://localhost:4000/weather/${id}`);
+    if (!res.ok) throw new Error('Daten nicht gefunden');
+    const entry = await res.json();
+
+    document.getElementById('editId').value = entry.id;
+    document.getElementById('editDatum').value = entry.date.split('T')[0];
+    document.getElementById('editTemperatur').value = entry.temperature;
+    document.getElementById('editRegen').value = entry.rainfall > 0 ? 'Ja' : 'Nein';
+    document.getElementById('editLuftfeuchtigkeit').value = entry.humidity || '';
+    document.getElementById('editLuftdruck').value = entry.pressure || '';
+    document.getElementById('editWindgeschwindigkeit').value = entry.windspeed || '';
+
+    document.getElementById('editModal').style.display = 'flex';
+  } catch (err) {
+    alert('Fehler beim Laden: ' + err.message);
+  }
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').style.display = 'none';
+  document.getElementById('editForm').reset();
+  document.getElementById('editMessage').innerHTML = '';
+}
+
+async function handleEditSubmit(e) {
+  e.preventDefault();
+  const id = document.getElementById('editId').value;
+  
+  const payload = {
+    date: document.getElementById('editDatum').value,
+    temperature: parseFloat(document.getElementById('editTemperatur').value),
+    windspeed: parseFloat(document.getElementById('editWindgeschwindigkeit').value) || 0,
+    humidity: parseFloat(document.getElementById('editLuftfeuchtigkeit').value) || 0,
+    pressure: parseFloat(document.getElementById('editLuftdruck').value) || 0,
+    rainfall: document.getElementById('editRegen').value === 'Ja' ? 1 : 0
+  };
+
+  const msg = document.getElementById('editMessage');
+  try {
+    const res = await fetch(`http://localhost:4000/weather/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      msg.innerHTML = '<div class="alert alert-success">Änderungen gespeichert!</div>';
+      setTimeout(() => {
+        closeEditModal();
+        loadTable();
+      }, 1000);
+    } else {
+      msg.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+    }
+  } catch (err) {
+    msg.innerHTML = '<div class="alert alert-danger">Netzwerkfehler: ' + err.message + '</div>';
   }
 }
 
 async function loadStatistics() {
   const el = document.getElementById('statistik');
+  if (!el) return;
   el.innerHTML = '<p>Lädt Statistiken...</p>';
 
   try {
@@ -354,27 +547,40 @@ async function loadStatistics() {
     const data = await res.json();
 
     if (data.length === 0) {
-      el.innerHTML = '<p>Keine Daten vorhanden.</p>';
+      el.innerHTML = '<p class="text-muted">Keine Daten vorhanden.</p>';
       return;
     }
 
     const count = data.length;
-    const avgTemp = (data.reduce((s,d) => s + d.temperature, 0) / count).toFixed(1);
+    const avgTemp = (data.reduce((s, d) => s + d.temperature, 0) / count).toFixed(1);
     const rainy = data.filter(d => d.rainfall > 0).length;
-    const pctRain = ((rainy / count) * 100).toFixed(0);
+    const pct = ((rainy / count) * 100).toFixed(0);
 
     el.innerHTML = `
       <p><strong>Datenpunkte:</strong> ${count}</p>
       <p><strong>Durchschnittstemperatur:</strong> ${avgTemp} °C</p>
-      <p><strong>Regnerische Tage:</strong> ${rainy} (${pctRain}%)</p>
+      <p><strong>Regnerische Tage:</strong> ${rainy} (${pct}%)</p>
     `;
   } catch (err) {
-    el.innerHTML = '<p class="text-danger">Fehler beim Laden der Statistik</p>';
+    el.innerHTML = '<p class="text-danger">Fehler beim Laden</p>';
   }
 }
 
-// ========== INIT ==========
-showSection('home');
+// ========== INITIALIZATION ==========
+document.addEventListener('DOMContentLoaded', () => {
+  // Auth event listeners
+  document.getElementById('toggleAuth').addEventListener('click', toggleAuthMode);
+  document.getElementById('backToLogin').addEventListener('click', toggleAuthMode);
+  document.getElementById('authForm').addEventListener('submit', handleAuthSubmit);
+  
+  // Weather form
+  document.getElementById('weatherForm').addEventListener('submit', handleWeatherSubmit);
+  
+  // Edit form
+  document.getElementById('editForm').addEventListener('submit', handleEditSubmit);
+
+  showSection('home');
+});
 </script>
 
 </body>
