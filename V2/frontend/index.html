@@ -18,10 +18,10 @@
     }
     .section {
       padding: 60px 0;
-      display: none; /* standardmäßig ausgeblendet */
+      display: none;
     }
     .section.active {
-      display: block; /* nur aktive Sektion sichtbar */
+      display: block;
     }
     .section-title {
       margin-bottom: 40px;
@@ -43,357 +43,339 @@
       background: #f8f9fa;
       margin-top: 40px;
     }
-    .back-btn {
-      display: flex;
-      justify-content: end;
-      margin-bottom: 20px;
+    .login-section {
+      max-width: 400px;
+      margin: 60px auto;
+    }
+    .role-hint {
+      font-size: 0.85rem;
+      color: #6c757d;
+      margin-top: 5px;
     }
   </style>
 </head>
 <body>
 
-  <!-- HEADER -->
-  <header>
-    <div class="container d-flex flex-wrap justify-content-between align-items-center">
-      <h2 class="mb-0">Wettertagebuch</h2>
-      <form class="d-flex" onsubmit="event.preventDefault(); alert('Login simuliert!');">
-        <!-- <input type="text" class="form-control me-2" placeholder="Benutzername" required>
-        <input type="password" class="form-control me-2" placeholder="Passwort" required>
-        <button class="btn btn-primary" type="submit">Login</button> -->
+<header>
+  <div class="container d-flex flex-wrap justify-content-between align-items-center">
+    <h2 class="mb-0">Wettertagebuch</h2>
+    <div id="authStatus">
+      <button class="btn btn-outline-primary btn-sm" onclick="showSection('login')">Login</button>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+  <!-- START SEITE -->
+  <section id="home" class="section active">
+    <div class="text-center">
+      <h1 class="section-title">Willkommen im Wettertagebuch!</h1>
+      <div class="row mt-5 justify-content-center g-4" id="homeCards">
+        <!-- Will be filled by JS based on role -->
+      </div>
+    </div>
+  </section>
+
+  <!-- LOGIN -->
+  <section id="login" class="section">
+    <div class="login-section">
+      <h2 class="text-center mb-4">Anmelden</h2>
+      <form id="loginForm">
+        <div class="mb-3">
+          <label for="loginEmail" class="form-label">Email *</label>
+          <input type="email" class="form-control" id="loginEmail" required>
+        </div>
+        <div class="mb-3">
+          <label for="loginPassword" class="form-label">Passwort *</label>
+          <input type="password" class="form-control" id="loginPassword" required>
+        </div>
+        <div class="d-grid">
+          <button type="submit" class="btn btn-primary">Anmelden</button>
+        </div>
+        <div id="loginMessage" class="mt-3"></div>
+        <div class="text-center mt-3">
+          <button type="button" class="btn btn-link" onclick="showSection('home')">Zurück</button>
+        </div>
+      </form>
+      <div class="role-hint">
+        Test-Daten:<br>
+        Admin: admin@example.com / admin123<br>
+        User: user@example.com / user123
+      </div>
+    </div>
+  </section>
+
+  <!-- DATENERFASSUNG -->
+  <section id="erfassung" class="section">
+    <div class="back-btn">
+      <button class="btn btn-outline-dark" onclick="showSection('home')">← Zurück</button>
+    </div>
+    <h2 class="section-title">Datenerfassung</h2>
+    <div class="card p-4 mx-auto" style="max-width:600px;">
+      <form id="weatherForm">
+        <div class="mb-3">
+          <label class="form-label">Datum *</label>
+          <input type="date" class="form-control" id="datum" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Temperatur (°C) *</label>
+          <input type="number" class="form-control" id="temperatur" step="0.1" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Regen</label>
+          <select class="form-select" id="regen">
+            <option value="Nein">Nein</option>
+            <option value="Ja">Ja</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Luftfeuchtigkeit (%)</label>
+          <input type="number" class="form-control" id="luftfeuchtigkeit" min="0" max="100" step="0.1">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Luftdruck (hPa)</label>
+          <input type="number" class="form-control" id="luftdruck" step="0.1">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Windgeschwindigkeit (km/h)</label>
+          <input type="number" class="form-control" id="windgeschwindigkeit" step="0.1">
+        </div>
+        <div class="d-flex justify-content-between">
+          <button type="reset" class="btn btn-secondary">Zurücksetzen</button>
+          <button type="submit" class="btn btn-primary">Speichern</button>
+        </div>
+        <div id="meldung" class="mt-3"></div>
       </form>
     </div>
-  </header>
+  </section>
 
-  <main class="container py-4">
+  <!-- VERWALTUNG -->
+  <section id="verwaltung" class="section">
+    <div class="back-btn">
+      <button class="btn btn-outline-dark" onclick="showSection('home')">← Zurück</button>
+    </div>
+    <h2 class="section-title">Verwaltung</h2>
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Datum</th>
+            <th>Temperatur</th>
+            <th>Regen</th>
+            <th>Luftfeuchte</th>
+            <th>Luftdruck</th>
+            <th>Wind</th>
+            <th>Aktion</th>
+          </tr>
+        </thead>
+        <tbody id="datenTabelle"></tbody>
+      </table>
+    </div>
+  </section>
 
-    <!-- STARTSEITE -->
-    <section id="home" class="section active">
-      <div class="text-center">
-        <h1 class="section-title">Willkommen im Wettertagebuch!</h1>
-        <!-- <p class="lead">Erfassen, verwalten und analysieren Sie Ihre Wetterdaten bequem über diese Weboberfläche.</p> -->
-
-        <div class="row mt-5 justify-content-center g-4">
-
-          <div class="col-md-3">
-            <div class="card p-4">
-              <h5 class="card-title">Datenerfassung</h5>
-              <p class="card-text">Neue Wetterbeobachtungen erfassen</p>
-              <button class="btn btn-primary w-100" onclick="showSection('erfassung')">Öffnen</button>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card p-4">
-              <h5 class="card-title">Verwaltung</h5>
-              <p class="card-text">Gespeicherte Einträge ansehen, bearbeiten oder löschen</p>
-              <button class="btn btn-primary w-100" onclick="showSection('verwaltung')">Öffnen</button>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card p-4">
-              <h5 class="card-title">Auswertung</h5>
-              <p class="card-text">Statistiken und Diagramme einsehen</p>
-              <button class="btn btn-primary w-100" onclick="showSection('auswertung')">Öffnen</button>
-            </div>
-          </div>
-        </div>
+  <!-- AUSWERTUNG -->
+  <section id="auswertung" class="section">
+    <div class="back-btn">
+      <button class="btn btn-outline-dark" onclick="showSection('home')">← Zurück</button>
+    </div>
+    <h2 class="section-title">Auswertung</h2>
+    <div id="statistik" class="text-center mb-4"></div>
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Temperaturverlauf</h5>
+        <canvas id="temperaturChart" height="400"></canvas>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- DATENERFASSUNG -->
-    <section id="erfassung" class="section">
-      <div class="container">
-        <div class="back-btn">
-          <button class="btn btn-outline-dark" onclick="showSection('home')">Zurück zur Startseite</button>
-        </div>
-        <h2 class="section-title">Datenerfassung</h2>
-        <div class="card p-4 mx-auto" style="max-width:600px;">
-          <form id="weatherForm" onsubmit="handleSubmit(event)">
-            <div class="mb-3">
-              <label for="datum" class="form-label">Datum *</label>
-              <input type="date" class="form-control" id="datum" required>
-            </div>
-            <div class="mb-3">
-              <label for="temperatur" class="form-label">Temperatur (°C) *</label>
-              <input type="number" class="form-control" id="temperatur" step="0.1" required>
-            </div>
-            <div class="mb-3">
-              <label for="regen" class="form-label">Regen</label>
-              <select class="form-select" id="regen">
-                <option value="">Bitte wählen...</option>
-                <option value="Ja">Ja</option>
-                <option value="Nein">Nein</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label for="luftfeuchtigkeit" class="form-label">Luftfeuchtigkeit (%)</label>
-              <input type="number" class="form-control" id="luftfeuchtigkeit" min="0" max="100" step="0.1">
-            </div>
-            <div class="mb-3">
-              <label for="luftdruck" class="form-label">Luftdruck (hPa)</label>
-              <input type="number" class="form-control" id="luftdruck" step="0.1">
-            </div>
-            <div class="mb-3">
-              <label for="windgeschwindigkeit" class="form-label">Windgeschwindigkeit (km/h)</label>
-              <input type="number" class="form-control" id="windgeschwindigkeit" step="0.1">
-            </div>
-            <div class="mb-3">
-              <label for="notizen" class="form-label">Notizen</label>
-              <textarea class="form-control" id="notizen" rows="3"></textarea>
-            </div>
-            <div class="d-flex justify-content-between">
-              <button type="reset" class="btn btn-secondary">Zurücksetzen</button>
-              <button type="submit" class="btn btn-primary">Speichern</button>
-            </div>
-          </form>
-          <div id="meldung" class="mt-3"></div>
-        </div>
+</main>
+
+<script>
+let currentUser = null;
+
+// ========== UTILS ==========
+function showSection(id) {
+  // Role-based access control
+  if (id === 'erfassung' && currentUser?.role !== 'admin') {
+    alert('Nur Admins dürfen Daten erfassen.');
+    return;
+  }
+  if (id === 'verwaltung' && currentUser?.role !== 'admin') {
+    alert('Nur Admins dürfen Einträge verwalten.');
+    return;
+  }
+
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+
+  if (id === 'verwaltung') loadTable();
+  if (id === 'auswertung') loadStatistics();
+  if (id === 'home') renderHomeCards();
+}
+
+function renderHomeCards() {
+  const container = document.getElementById('homeCards');
+  container.innerHTML = '';
+
+  const cards = [];
+
+  if (currentUser?.role === 'admin') {
+    cards.push(
+      { title: 'Datenerfassung', desc: 'Neue Wetterbeobachtungen erfassen', action: 'erfassung' },
+      { title: 'Verwaltung', desc: 'Einträge bearbeiten oder löschen', action: 'verwaltung' }
+    );
+  }
+
+  cards.push(
+    { title: 'Auswertung', desc: 'Statistiken und Diagramme', action: 'auswertung' }
+  );
+
+  container.innerHTML = cards.map(c => `
+    <div class="col-md-4">
+      <div class="card p-4 h-100">
+        <h5 class="card-title">${c.title}</h5>
+        <p class="card-text">${c.desc}</p>
+        <button class="btn btn-primary w-100" onclick="showSection('${c.action}')">Öffnen</button>
       </div>
-    </section>
+    </div>
+  `).join('');
+}
 
-    <!-- VERWALTUNG -->
-    <section id="verwaltung" class="section bg-light">
-      <div class="container">
-        <div class="back-btn">
-          <button class="btn btn-outline-dark" onclick="showSection('home')">Zurück zur Startseite</button>
-        </div>
-        <h2 class="section-title">Verwaltung</h2>
-        <div class="table-responsive">
-          <table class="table table-striped" id="datenTabelle">
-            <thead>
-              <tr>
-                <th>Datum</th>
-                <th>Temperatur (°C)</th>
-                <th>Regen</th>
-                <th>Luftfeuchtigkeit (%)</th>
-                <th>Luftdruck (hPa)</th>
-                <th>Windgeschwindigkeit (km/h)</th>
-                <th>Notizen</th>
-                <th>Aktionen</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
+// ========== AUTH ==========
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  const msg = document.getElementById('loginMessage');
 
-    <!-- AUSWERTUNG -->
-    <section id="auswertung" class="section">
-      <div class="container text-center">
-        <div class="back-btn">
-          <button class="btn btn-outline-dark" onclick="showSection('home')">Zurück zur Startseite</button>
-        </div>
-        <h2 class="section-title">Auswertung</h2>
-        <div class="row">
-          <div class="col-12 mb-4">
-            <div id="statistik" class="text-center mb-3"></div>
-          </div>
-          <div class="col-12">
-            <div class="card">
-              <div class="card-body">
-                <h5 class="card-title">Temperaturverlauf</h5>
-                <div style="height: 400px; width: 100%;">
-                  <canvas id="temperaturChart"></canvas>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+  try {
+    const res = await fetch('http://localhost:4000/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
 
-  </main>
-
-  <!-- <footer>
-    ©2025 Wettertagebuch
-  </footer> -->
-
-  <script>
-    function showSection(id) {
-      document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
-      document.getElementById(id).classList.add('active');
-      if(id === 'verwaltung') ladeTabelle();
-      if(id === 'auswertung') zeigeStatistik();
+    if (res.ok) {
+      currentUser = data.user;
+      document.getElementById('authStatus').innerHTML = 
+        `Angemeldet als ${currentUser.name} (${currentUser.role}) • 
+         <button class="btn btn-outline-danger btn-sm" onclick="logout()">Logout</button>`;
+      showSection('home');
+    } else {
+      msg.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
     }
+  } catch (err) {
+    msg.innerHTML = `<div class="alert alert-danger">Netzwerkfehler</div>`;
+  }
+});
 
-    function handleSubmit(event){
-      event.preventDefault();
-      const datumVal = document.getElementById('datum').value;
-      const tempVal = parseFloat(document.getElementById('temperatur').value);
-      const regenVal = document.getElementById('regen').value;
-      const luftfeuchteVal = document.getElementById('luftfeuchtigkeit').value;
-      const luftdruckVal = document.getElementById('luftdruck').value;
-      const windVal = document.getElementById('windgeschwindigkeit').value;
-      const notizenVal = document.getElementById('notizen').value;
+function logout() {
+  currentUser = null;
+  document.getElementById('authStatus').innerHTML = 
+    '<button class="btn btn-outline-primary btn-sm" onclick="showSection(\'login\')">Login</button>';
+  showSection('home');
+}
 
-      if(!datumVal || isNaN(tempVal)){
-        alert('Bitte Datum und Temperatur ausfüllen!');
-        return;
-      }
+// ========== WEATHER FORM ==========
+document.getElementById('weatherForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    date: new Date(document.getElementById('datum').value).toISOString(),
+    temperature: parseFloat(document.getElementById('temperatur').value),
+    windspeed: parseFloat(document.getElementById('windgeschwindigkeit').value) || 0,
+    humidity: parseFloat(document.getElementById('luftfeuchtigkeit').value) || 0,
+    pressure: parseFloat(document.getElementById('luftdruck').value) || 0,
+    rainfall: document.getElementById('regen').value === 'Ja' ? 1 : 0
+  };
 
-      const eintrag = {
-        datum: datumVal,
-        temperatur: tempVal,
-        regen: regenVal || null,
-        luftfeuchtigkeit: luftfeuchteVal ? parseFloat(luftfeuchteVal) : null,
-        luftdruck: luftdruckVal ? parseFloat(luftdruckVal) : null,
-        windgeschwindigkeit: windVal ? parseFloat(windVal) : null,
-        notizen: notizenVal || ''
-      };
+  const msg = document.getElementById('meldung');
 
-      let daten = JSON.parse(localStorage.getItem('wetterdaten')) || [];
-      daten.push(eintrag);
-      localStorage.setItem('wetterdaten', JSON.stringify(daten));
-      document.getElementById('meldung').innerHTML = '<div class="alert alert-success">Gespeichert!</div>';
+  try {
+    const res = await fetch('http://localhost:4000/weather', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      msg.innerHTML = '<div class="alert alert-success">Gespeichert!</div>';
       document.getElementById('weatherForm').reset();
+    } else {
+      msg.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+    }
+  } catch (err) {
+    msg.innerHTML = '<div class="alert alert-danger">Netzwerkfehler</div>';
+  }
+});
+
+// ========== TABLE & STATS ==========
+async function loadTable() {
+  const tbody = document.getElementById('datenTabelle');
+  tbody.innerHTML = '<tr><td colspan="7" class="text-center">Lädt...</td></tr>';
+
+  try {
+    const res = await fetch('http://localhost:4000/weather');
+    const data = await res.json();
+    tbody.innerHTML = data.map(d => `
+      <tr>
+        <td>${d.date.split('T')[0]}</td>
+        <td>${d.temperature}°C</td>
+        <td>${d.rainfall > 0 ? 'Ja' : 'Nein'}</td>
+        <td>${d.humidity}%</td>
+        <td>${d.pressure}</td>
+        <td>${d.windspeed}</td>
+        <td><button class="btn btn-sm btn-danger" onclick="deleteEntry(${d.id})">Löschen</button></td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-danger">Fehler beim Laden</td></tr>';
+  }
+}
+
+async function deleteEntry(id) {
+  if (!confirm('Wirklich löschen?')) return;
+  try {
+    await fetch(`http://localhost:4000/weather/${id}`, { method: 'DELETE' });
+    loadTable();
+  } catch (err) {
+    alert('Fehler beim Löschen');
+  }
+}
+
+async function loadStatistics() {
+  const el = document.getElementById('statistik');
+  el.innerHTML = '<p>Lädt Statistiken...</p>';
+
+  try {
+    const res = await fetch('http://localhost:4000/weather');
+    const data = await res.json();
+
+    if (data.length === 0) {
+      el.innerHTML = '<p>Keine Daten vorhanden.</p>';
+      return;
     }
 
-    function ladeTabelle() {
-      const daten = JSON.parse(localStorage.getItem('wetterdaten')) || [];
-      const tbody = document.querySelector('#datenTabelle tbody');
-      tbody.innerHTML = '';
-      daten.forEach((d,i)=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${d.datum}</td>
-          <td>${d.temperatur}</td>
-          <td>${d.regen || '-'}</td>
-          <td>${d.luftfeuchtigkeit != null ? d.luftfeuchtigkeit : '-'}</td>
-          <td>${d.luftdruck != null ? d.luftdruck : '-'}</td>
-          <td>${d.windgeschwindigkeit != null ? d.windgeschwindigkeit : '-'}</td>
-          <td>${d.notizen || '-'}</td>
-          <td><button class="btn btn-sm btn-danger" onclick="loescheEintrag(${i})">Löschen</button></td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
+    const count = data.length;
+    const avgTemp = (data.reduce((s,d) => s + d.temperature, 0) / count).toFixed(1);
+    const rainy = data.filter(d => d.rainfall > 0).length;
+    const pctRain = ((rainy / count) * 100).toFixed(0);
 
-    function loescheEintrag(index){
-      let daten = JSON.parse(localStorage.getItem('wetterdaten')) || [];
-      daten.splice(index,1);
-      localStorage.setItem('wetterdaten', JSON.stringify(daten));
-      ladeTabelle();
-    }
+    el.innerHTML = `
+      <p><strong>Datenpunkte:</strong> ${count}</p>
+      <p><strong>Durchschnittstemperatur:</strong> ${avgTemp} °C</p>
+      <p><strong>Regnerische Tage:</strong> ${rainy} (${pctRain}%)</p>
+    `;
+  } catch (err) {
+    el.innerHTML = '<p class="text-danger">Fehler beim Laden der Statistik</p>';
+  }
+}
 
-    function zeigeStatistik(){
-      const daten = JSON.parse(localStorage.getItem('wetterdaten')) || [];
-      const statistikEl = document.getElementById('statistik');
-      if(daten.length === 0){
-        statistikEl.innerHTML = "<p>Keine Daten vorhanden.</p>";
-        if(window.temperaturChart && typeof window.temperaturChart.destroy === 'function') {
-          window.temperaturChart.destroy();
-        }
-        return;
-      }
+// ========== INIT ==========
+showSection('home');
+</script>
 
-      const count = daten.length;
-      const avgTemp = (daten.reduce((sum,d)=>sum + (d.temperatur||0),0)/count).toFixed(1);
-      const rainyCount = daten.filter(d=>d.regen && d.regen.toLowerCase()==='ja').length;
-      const rainPercent = ((rainyCount/count)*100).toFixed(0);
-
-      const humidVals = daten.map(d=>d.luftfeuchtigkeit).filter(v=>v!=null && !isNaN(v));
-      const avgHum = humidVals.length ? (humidVals.reduce((s,v)=>s+v,0)/humidVals.length).toFixed(1) : '-';
-
-      const pressureVals = daten.map(d=>d.luftdruck).filter(v=>v!=null && !isNaN(v));
-      const avgPressure = pressureVals.length ? (pressureVals.reduce((s,v)=>s+v,0)/pressureVals.length).toFixed(1) : '-';
-
-      const windVals = daten.map(d=>d.windgeschwindigkeit).filter(v=>v!=null && !isNaN(v));
-      const avgWind = windVals.length ? (windVals.reduce((s,v)=>s+v,0)/windVals.length).toFixed(1) : '-';
-
-      statistikEl.innerHTML = `
-        <p><strong>Anzahl Einträge:</strong> ${count}</p>
-        <p><strong>Durchschnittstemperatur:</strong> ${avgTemp} °C</p>
-        <p><strong>Regnerische Tage:</strong> ${rainyCount} (${rainPercent}%)</p>
-        <p><strong>Durchschnitt Luftfeuchtigkeit:</strong> ${avgHum}${avgHum !== '-' ? ' %' : ''}</p>
-        <p><strong>Durchschnitt Luftdruck:</strong> ${avgPressure}${avgPressure !== '-' ? ' hPa' : ''}</p>
-        <p><strong>Durchschnitt Windgeschwindigkeit:</strong> ${avgWind}${avgWind !== '-' ? ' km/h' : ''}</p>
-      `;
-
-      // Daten für das Temperatur-Chart vorbereiten (nur gültige Temperatur-Einträge)
-      const sortedData = [...daten].sort((a,b) => new Date(a.datum) - new Date(b.datum));
-      // Temperature können als String gespeichert sein -> robust parsen
-      const chartData = sortedData.map(d => ({
-        ...d,
-        _temp: d && d.temperatur != null ? parseFloat(d.temperatur) : NaN
-      })).filter(d => d && d.datum && isFinite(d._temp));
-
-      if(chartData.length === 0){
-        // Kein Temperaturdaten zum Anzeigen
-        const statistikEl = document.getElementById('statistik');
-        statistikEl.innerHTML += '<p><em>Keine Temperaturdaten zum Anzeigen.</em></p>';
-        if(window.temperaturChart && typeof window.temperaturChart.destroy === 'function'){
-          window.temperaturChart.destroy();
-        }
-        return;
-      }
-
-      const labels = chartData.map(d => {
-        const date = new Date(d.datum);
-        return date.toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'});
-      });
-  const temperatures = chartData.map(d => d._temp);
-
-      const canvas = document.getElementById('temperaturChart');
-      // Stelle sicher, dass der Canvas-Container eine Höhe hat (Chart.js braucht Parent-Size wenn maintainAspectRatio=false)
-      if(canvas && canvas.parentElement){
-        canvas.parentElement.style.height = canvas.parentElement.style.height || '400px';
-      }
-      const ctx = canvas.getContext('2d');
-
-      // Altes Chart aufräumen wenn es existiert
-      if(window.temperaturChart && typeof window.temperaturChart.destroy === 'function') {
-        window.temperaturChart.destroy();
-      }
-
-      // Debug in Konsole
-      console.log('Chart labels:', labels);
-      console.log('Chart temps:', temperatures);
-
-      window.temperaturChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Temperatur (°C)',
-            data: temperatures,
-            borderColor: '#0d6efd',
-            backgroundColor: 'rgba(13, 110, 253, 0.1)',
-            borderWidth: 2,
-            fill: true,
-            tension: 0.3
-          }]
-        },
-        options: {
-          responsive: true,
-           maintainAspectRatio: false,
-          plugins: {
-            title: {
-              display: false,
-              text: 'Temperaturverlauf'
-            },
-            legend: {
-              display: true,
-              position: 'top'
-            }
-          },
-          scales: {
-            y: {
-               beginAtZero: false,
-              title: {
-                display: true,
-                text: 'Temperatur (°C)'
-              }
-            },
-            x: {
-              title: {
-                display: true,
-                text: 'Datum'
-              }
-            }
-          }
-        }
-      });
-    }
-  </script>
 </body>
 </html>

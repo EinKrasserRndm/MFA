@@ -1,126 +1,170 @@
 const http = require('http');
+const url = require('url');
 const { PrismaClient } = require('../generated/prisma');
-const { faker } = require('@faker-js/faker');
 
 const prisma = new PrismaClient();
 const PORT = process.env.SEED_PORT || 4000;
 
+// CORS middleware
+function addCorsHeaders(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+// Validate weather object
 function isValidWeather(obj) {
   if (!obj) return false;
   const { date, temperature, windspeed, humidity, pressure, rainfall } = obj;
   if (!date) return false;
   if ([temperature, windspeed, humidity, pressure, rainfall].some(v => v === undefined)) return false;
   const d = new Date(date);
-  if (Number.isNaN(d.getTime())) return false;
-  return true;
+  return !Number.isNaN(d.getTime());
 }
 
-async function seedUsers() {
-  console.log('Seeding 50 users...');
-  for (let i = 0; i < 50; i++) {
-    await prisma.user.create({
-      data: {
-        name: faker.person.fullName(),
-        email: faker.internet.email().toLowerCase(),
-        role: faker.helpers.arrayElement(['admin', 'user']),
-        password: faker.internet.password(10),
-      },
-    });
-  }
-  console.log('Users seeded.');
-}
+const server = http.createServer(async (req, res) => {
+  addCorsHeaders(res);
 
-async function insertWeatherArray(arr) {
-  for (const item of arr) {
-    if (!isValidWeather(item)) {
-      throw new Error('Invalid weather object: ' + JSON.stringify(item));
-    }
+  // Preflight
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
   }
 
-  for (const item of arr) {
-    await prisma.weather.create({
-      data: {
-        date: new Date(item.date),
-        temperature: Number(item.temperature),
-        windspeed: Number(item.windspeed),
-        humidity: Number(item.humidity),
-        pressure: Number(item.pressure),
-        rainfall: Number(item.rainfall),
-      },
-    });
-  }
-}
+  const reqUrl = url.parse(req.url, true);
+  const path = reqUrl.pathname;
 
-(async function main() {
-  try {
-    await seedUsers();
+  // ================== LOGIN ==================
+  if (req.method === 'POST' && path === '/login') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', async () => {
+      try {
+        const { email, password } = JSON.parse(body);
+        if (!email || !password) throw new Error('Email und Passwort erforderlich');
 
-    console.log('');
-    console.log(`HTTP server listening on http://localhost:${PORT}`);
-    console.log('POST JSON to /weather  (single object or array) to insert weather entries.');
-    console.log("POST to /done to stop the server and finish the seed.");
-    console.log('');
-    console.log('Example curl (single):');
-    console.log(`curl -X POST http://localhost:${PORT}/weather -H "Content-Type: application/json" -d '{"date":"2025-10-17T12:00:00Z","temperature":12.3,"windspeed":3.4,"humidity":56,"pressure":1012,"rainfall":0}'`);
-    console.log('');
-    console.log('Example curl (multiple):');
-    console.log(`curl -X POST http://localhost:${PORT}/weather -H "Content-Type: application/json" -d '[{"date":"2025-10-17T12:00:00Z","temperature":12.3,"windspeed":3.4,"humidity":56,"pressure":1012,"rainfall":0},{"date":"2025-10-17T13:00:00Z","temperature":11.9,"windspeed":2.1,"humidity":60,"pressure":1011,"rainfall":0}]'`);
-    console.log('');
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user) throw new Error('Benutzer nicht gefunden');
+        if (user.password !== password) throw new Error('Falsches Passwort');
 
-    const server = http.createServer(async (req, res) => {
-      if (req.method === 'POST' && req.url === '/weather') {
-        let body = '';
-        req.on('data', chunk => body += chunk.toString());
-        req.on('end', async () => {
-          try {
-            const parsed = JSON.parse(body);
-            const arr = Array.isArray(parsed) ? parsed : [parsed];
-            await insertWeatherArray(arr);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ ok: true, inserted: arr.length }));
-            console.log(`Inserted ${arr.length} weather entries.`);
-          } catch (err) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ ok: false, error: err.message }));
-            console.error('Error inserting weather:', err.message);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          ok: true,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role
           }
-        });
-        return;
+        }));
+      } catch (err) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
       }
-
-      if (req.method === 'POST' && req.url === '/done') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, message: 'Shutting down' }));
-        console.log('Received /done — shutting down.');
-        server.close(async () => {
-          await prisma.$disconnect();
-          process.exit(0);
-        });
-        return;
-      }
-
-      if (req.method === 'GET' && req.url === '/status') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'ok' }));
-        return;
-      }
-
-      res.writeHead(404);
-      res.end();
     });
-
-    server.listen(PORT);
-    // handle ctrl+c
-    process.on('SIGINT', async () => {
-      console.log('SIGINT — closing.');
-      server.close(async () => {
-        await prisma.$disconnect();
-        process.exit(0);
-      });
-    });
-  } catch (e) {
-    console.error(e);
-    await prisma.$disconnect();
-    process.exit(1);
+    return;
   }
-})();
+
+  // ================== GET WEATHER ==================
+  if (req.method === 'GET' && path === '/weather') {
+    try {
+      const entries = await prisma.weather.findMany({ orderBy: { date: 'asc' } });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(entries));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
+  // ================== POST WEATHER ==================
+  if (req.method === 'POST' && path === '/weather') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', async () => {
+      try {
+        if (!body.trim()) throw new Error('Leerer Body');
+        const parsed = JSON.parse(body);
+        const arr = Array.isArray(parsed) ? parsed : [parsed];
+
+        for (const item of arr) {
+          if (!isValidWeather(item)) throw new Error('Ungültiges Wetterobjekt');
+        }
+
+        for (const item of arr) {
+          await prisma.weather.create({
+            data: {
+              date: new Date(item.date),
+              temperature: Number(item.temperature),
+              windspeed: Number(item.windspeed),
+              humidity: Number(item.humidity),
+              pressure: Number(item.pressure),
+              rainfall: Number(item.rainfall),
+            },
+          });
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, inserted: arr.length }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // ================== DELETE WEATHER ==================
+  if (req.method === 'DELETE' && path.startsWith('/weather/')) {
+    const id = parseInt(path.split('/')[2]);
+    if (isNaN(id)) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ungültige ID' }));
+      return;
+    }
+
+    try {
+      await prisma.weather.delete({ where: { id } });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true }));
+    } catch (err) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Eintrag nicht gefunden' }));
+    }
+    return;
+  }
+
+  // ================== SHUTDOWN ==================
+  if (req.method === 'POST' && path === '/done') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, message: 'Shutting down' }));
+    server.close(() => {
+      prisma.$disconnect();
+      process.exit(0);
+    });
+    return;
+  }
+
+  // 404
+  res.writeHead(404);
+  res.end();
+});
+
+server.listen(PORT, () => {
+  console.log(`\nBackend läuft auf http://localhost:${PORT}`);
+  console.log('Verfügbare Endpunkte:');
+  console.log('  POST /login          → Login');
+  console.log('  GET  /weather         → Alle Wetterdaten');
+  console.log('  POST /weather         → Neuen Eintrag speichern');
+  console.log('  DELETE /weather/:id   → Eintrag löschen');
+  console.log('  POST /done            → Server stoppen\n');
+});
+
+process.on('SIGINT', () => {
+  server.close(() => {
+    prisma.$disconnect();
+    process.exit(0);
+  });
+});
