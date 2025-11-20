@@ -128,8 +128,8 @@ const server = http.createServer(async (req, res) => {
 
   // ================== GET SINGLE WEATHER ==================
   if (req.method === 'GET' && path.startsWith('/weather/')) {
-    const id = parseInt(path.split('/')[2], 10);
-    if (isNaN(id) || id <= 0) {
+    const id = path.split('/')[2];
+    if (!id || id.trim() === '') {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Ungültige ID' }));
       return;
