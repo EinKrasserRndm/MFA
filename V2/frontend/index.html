@@ -71,6 +71,10 @@
     .back-btn {
       margin-bottom: 20px;
     }
+    #temperaturChart {
+      height: 200px;
+      width: 100%;
+    }
   </style>
 </head>
 <body>
@@ -207,7 +211,7 @@
     <div class="card">
       <div class="card-body">
         <h5 class="card-title">Temperaturverlauf</h5>
-        <canvas id="temperaturChart" height="400"></canvas>
+        <canvas id="temperaturChart"></canvas>
       </div>
     </div>
   </section>
@@ -248,7 +252,7 @@
         <input type="number" class="form-control" id="editWindgeschwindigkeit" step="0.1">
       </div>
       <div class="d-flex justify-content-between">
-        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Abbrechen</button>
+        <button type="button" class="btn btn-secondary" id="closeEditModalBtn">Abbrechen</button>
         <button type="submit" class="btn btn-primary">Speichern</button>
       </div>
     </form>
@@ -443,8 +447,8 @@ async function loadTable() {
         <td>${d.pressure != null ? d.pressure : '-'}</td>
         <td>${d.windspeed != null ? d.windspeed : '-'}</td>
         <td>
-          <button class="btn btn-sm btn-primary me-1" onclick="editEntry(${d.id})">Bearbeiten</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteEntry(${d.id})">Löschen</button>
+          <button class="btn btn-sm btn-primary me-1 edit-btn" data-id="${d.id}">Bearbeiten</button>
+          <button class="btn btn-sm btn-danger delete-btn" data-id="${d.id}">Löschen</button>
         </td>
       </tr>
     `).join('');
@@ -455,17 +459,28 @@ async function loadTable() {
 
 // ========== DELETE ==========
 async function deleteEntry(id) {
+  const parsedId = parseInt(id);
+  if (isNaN(parsedId) || parsedId <= 0) {
+    alert('Ungültige ID');
+    return;
+  }
+
   if (!confirm('Möchten Sie diesen Eintrag wirklich löschen?')) return;
+
   try {
-    const res = await fetch(`http://localhost:4000/weather/${id}`, { 
+    const res = await fetch(`http://localhost:4000/weather/${parsedId}`, { 
       method: 'DELETE' 
     });
-    const data = await res.json();
-    
+
     if (res.ok) {
       alert('Eintrag erfolgreich gelöscht!');
       loadTable();
+      // Reload stats/chart if needed
+      if (document.getElementById('auswertung').classList.contains('active')) {
+        loadStatistics();
+      }
     } else {
+      const data = await res.json();
       alert(data.error || 'Fehler beim Löschen');
     }
   } catch (err) {
@@ -505,7 +520,7 @@ async function handleEditSubmit(e) {
   const id = document.getElementById('editId').value;
   
   const payload = {
-    date: document.getElementById('editDatum').value,
+    date: new Date(document.getElementById('editDatum').value).toISOString(),
     temperature: parseFloat(document.getElementById('editTemperatur').value),
     windspeed: parseFloat(document.getElementById('editWindgeschwindigkeit').value) || 0,
     humidity: parseFloat(document.getElementById('editLuftfeuchtigkeit').value) || 0,
@@ -528,18 +543,25 @@ async function handleEditSubmit(e) {
       setTimeout(() => {
         closeEditModal();
         loadTable();
+        // Reload stats/chart
+        if (document.getElementById('auswertung').classList.contains('active')) {
+          loadStatistics();
+        }
       }, 1000);
     } else {
       msg.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
     }
   } catch (err) {
-    msg.innerHTML = '<div class="alert alert-danger">Netzwerkfehler: ' + err.message + '</div>';
+    msg.innerHTML = `<div class="alert alert-danger">Netzwerkfehler: ${err.message}</div>`;
   }
 }
 
+// ========== STATISTICS & CHART ==========
 async function loadStatistics() {
   const el = document.getElementById('statistik');
-  if (!el) return;
+  const canvas = document.getElementById('temperaturChart');
+  if (!el || !canvas) return;
+  
   el.innerHTML = '<p>Lädt Statistiken...</p>';
 
   try {
@@ -548,21 +570,121 @@ async function loadStatistics() {
 
     if (data.length === 0) {
       el.innerHTML = '<p class="text-muted">Keine Daten vorhanden.</p>';
+      // Safely destroy chart
+      if (window.temperaturChart && typeof window.temperaturChart.destroy === 'function') {
+        window.temperaturChart.destroy();
+        window.temperaturChart = null;
+      }
       return;
     }
 
+    // ===== STATISTICS =====
     const count = data.length;
     const avgTemp = (data.reduce((s, d) => s + d.temperature, 0) / count).toFixed(1);
     const rainy = data.filter(d => d.rainfall > 0).length;
-    const pct = ((rainy / count) * 100).toFixed(0);
+    const rainPercent = ((rainy / count) * 100).toFixed(0);
+
+    const humidVals = data.map(d => d.humidity).filter(v => v != null && !isNaN(v));
+    const avgHum = humidVals.length ? (humidVals.reduce((s, v) => s + v, 0) / humidVals.length).toFixed(1) : '-';
+
+    const pressureVals = data.map(d => d.pressure).filter(v => v != null && !isNaN(v));
+    const avgPressure = pressureVals.length ? (pressureVals.reduce((s, v) => s + v, 0) / pressureVals.length).toFixed(1) : '-';
+
+    const windVals = data.map(d => d.windspeed).filter(v => v != null && !isNaN(v));
+    const avgWind = windVals.length ? (windVals.reduce((s, v) => s + v, 0) / windVals.length).toFixed(1) : '-';
 
     el.innerHTML = `
-      <p><strong>Datenpunkte:</strong> ${count}</p>
+      <p><strong>Anzahl Einträge:</strong> ${count}</p>
       <p><strong>Durchschnittstemperatur:</strong> ${avgTemp} °C</p>
-      <p><strong>Regnerische Tage:</strong> ${rainy} (${pct}%)</p>
+      <p><strong>Regnerische Tage:</strong> ${rainy} (${rainPercent}%)</p>
+      <p><strong>Durchschnitt Luftfeuchtigkeit:</strong> ${avgHum}${avgHum !== '-' ? ' %' : ''}</p>
+      <p><strong>Durchschnitt Luftdruck:</strong> ${avgPressure}${avgPressure !== '-' ? ' hPa' : ''}</p>
+      <p><strong>Durchschnitt Windgeschwindigkeit:</strong> ${avgWind}${avgWind !== '-' ? ' km/h' : ''}</p>
     `;
+
+    // ===== CHART =====
+    const sortedData = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const chartData = sortedData
+      .map(d => {
+        const dateObj = new Date(d.date);
+        return {
+          date: dateObj,
+          temp: d.temperature
+        };
+      })
+      .filter(d => !isNaN(d.temp) && !isNaN(d.date.getTime()));
+
+    if (chartData.length === 0) {
+      el.innerHTML += '<p><em>Keine Temperaturdaten zum Anzeigen.</em></p>';
+      // Safely destroy chart
+      if (window.temperaturChart && typeof window.temperaturChart.destroy === 'function') {
+        window.temperaturChart.destroy();
+        window.temperaturChart = null;
+      }
+      return;
+    }
+
+    const labels = chartData.map(d => 
+      d.date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
+    );
+    const temperatures = chartData.map(d => d.temp);
+
+    // Safely destroy existing chart
+    if (window.temperaturChart && typeof window.temperaturChart.destroy === 'function') {
+      window.temperaturChart.destroy();
+    }
+
+    const ctx = canvas.getContext('2d');
+    window.temperaturChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Temperatur (°C)',
+          data: temperatures,
+          borderColor: '#0d6efd',
+          backgroundColor: 'rgba(13, 110, 253, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: false,
+            title: {
+              display: true,
+              text: 'Temperatur (°C)'
+            }
+          },
+          x: {
+            title: {
+              display: true,
+              text: 'Datum'
+            }
+          }
+        }
+      }
+    });
+
+    console.log('Chart successfully created:', window.temperaturChart);
+
   } catch (err) {
-    el.innerHTML = '<p class="text-danger">Fehler beim Laden</p>';
+    el.innerHTML = '<p class="text-danger">Fehler beim Laden der Statistik: ' + err.message + '</p>';
+    // Safely destroy chart
+    if (window.temperaturChart && typeof window.temperaturChart.destroy === 'function') {
+      window.temperaturChart.destroy();
+      window.temperaturChart = null;
+    }
   }
 }
 
@@ -579,7 +701,37 @@ document.addEventListener('DOMContentLoaded', () => {
   // Edit form
   document.getElementById('editForm').addEventListener('submit', handleEditSubmit);
 
+  // Close modal
+  document.getElementById('closeEditModalBtn').addEventListener('click', closeEditModal);
+
   showSection('home');
+
+  // Dynamic edit/delete buttons
+  // Dynamic edit/delete buttons (event delegation)
+document.addEventListener('click', async (e) => {
+  console.log('Clicked:', e.target, 'Closest delete-btn:', e.target.closest('.delete-btn'));
+
+  const deleteBtn = e.target.closest('.delete-btn');
+  const editBtn = e.target.closest('.edit-btn');
+
+  if (deleteBtn) {
+    const id = parseInt(deleteBtn.dataset.id);
+    if (isNaN(id) || id <= 0) {
+      alert('Ungültige ID');
+      return;
+    }
+    await deleteEntry(id);
+  }
+
+  if (editBtn) {
+    const id = parseInt(editBtn.dataset.id);
+    if (isNaN(id) || id <= 0) {
+      alert('Ungültige ID');
+      return;
+    }
+    await editEntry(id);
+  }
+});
 });
 </script>
 
