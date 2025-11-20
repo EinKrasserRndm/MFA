@@ -14,23 +14,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/**
- * model:
- * user(id, name, email(unique),role(admin, user), password)
- * weather(id, date, temperature, windspeed, humidity, pressure, rainfall)
- */
+
+// Example model notes removed to avoid parser issues. Define models below.
+
 
 model User {
   id       Int    @id @default(autoincrement())
   name     String
   email    String @unique
-  role     Role   @default(user)
+  role     String @default("user")
   password String
-}
-
-enum Role {
-  admin
-  user
 }
 
 model Weather {

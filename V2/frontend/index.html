@@ -16,6 +16,10 @@
       padding: 1rem 0;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
+    .card-body {
+      max-height: 500px;
+     overflow-y: auto;
+    }
     .section {
       padding: 60px 0;
       display: none;
@@ -26,6 +30,16 @@
     .section-title {
       margin-bottom: 40px;
       text-align: center;
+    }
+    #temperaturChart {
+      height: 400px;
+      width: 100%;
+      max-width: 100%;
+      margin: 20px 0;
+    }
+
+    .card .card-body #temperaturChart {
+      height: 300px;
     }
     .card {
       border-radius: 1rem;
@@ -459,23 +473,21 @@ async function loadTable() {
 
 // ========== DELETE ==========
 async function deleteEntry(id) {
-  const parsedId = parseInt(id);
-  if (isNaN(parsedId) || parsedId <= 0) {
-    alert('Ungültige ID');
+  if (id === undefined || id === null || (typeof id === 'string' && id.trim() === '')) {
+    console.warn('deleteEntry called with invalid id:', id);
     return;
   }
 
   if (!confirm('Möchten Sie diesen Eintrag wirklich löschen?')) return;
 
   try {
-    const res = await fetch(`http://localhost:4000/weather/${parsedId}`, { 
+    const res = await fetch(`http://localhost:4000/weather/${encodeURIComponent(id)}`, { 
       method: 'DELETE' 
     });
 
     if (res.ok) {
       alert('Eintrag erfolgreich gelöscht!');
       loadTable();
-      // Reload stats/chart if needed
       if (document.getElementById('auswertung').classList.contains('active')) {
         loadStatistics();
       }
@@ -490,8 +502,13 @@ async function deleteEntry(id) {
 
 // ========== EDIT ==========
 async function editEntry(id) {
+  if (id === undefined || id === null || (typeof id === 'string' && id.trim() === '')) {
+    console.warn('editEntry called with invalid id:', id);
+    return;
+  }
+
   try {
-    const res = await fetch(`http://localhost:4000/weather/${id}`);
+    const res = await fetch(`http://localhost:4000/weather/${encodeURIComponent(id)}`);
     if (!res.ok) throw new Error('Daten nicht gefunden');
     const entry = await res.json();
 
@@ -530,7 +547,7 @@ async function handleEditSubmit(e) {
 
   const msg = document.getElementById('editMessage');
   try {
-    const res = await fetch(`http://localhost:4000/weather/${id}`, {
+    const res = await fetch(`http://localhost:4000/weather/${encodeURIComponent(id)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -543,7 +560,6 @@ async function handleEditSubmit(e) {
       setTimeout(() => {
         closeEditModal();
         loadTable();
-        // Reload stats/chart
         if (document.getElementById('auswertung').classList.contains('active')) {
           loadStatistics();
         }
@@ -570,7 +586,6 @@ async function loadStatistics() {
 
     if (data.length === 0) {
       el.innerHTML = '<p class="text-muted">Keine Daten vorhanden.</p>';
-      // Safely destroy chart
       if (window.temperaturChart && typeof window.temperaturChart.destroy === 'function') {
         window.temperaturChart.destroy();
         window.temperaturChart = null;
@@ -578,7 +593,6 @@ async function loadStatistics() {
       return;
     }
 
-    // ===== STATISTICS =====
     const count = data.length;
     const avgTemp = (data.reduce((s, d) => s + d.temperature, 0) / count).toFixed(1);
     const rainy = data.filter(d => d.rainfall > 0).length;
@@ -602,7 +616,6 @@ async function loadStatistics() {
       <p><strong>Durchschnitt Windgeschwindigkeit:</strong> ${avgWind}${avgWind !== '-' ? ' km/h' : ''}</p>
     `;
 
-    // ===== CHART =====
     const sortedData = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
     const chartData = sortedData
       .map(d => {
@@ -616,7 +629,6 @@ async function loadStatistics() {
 
     if (chartData.length === 0) {
       el.innerHTML += '<p><em>Keine Temperaturdaten zum Anzeigen.</em></p>';
-      // Safely destroy chart
       if (window.temperaturChart && typeof window.temperaturChart.destroy === 'function') {
         window.temperaturChart.destroy();
         window.temperaturChart = null;
@@ -629,7 +641,7 @@ async function loadStatistics() {
     );
     const temperatures = chartData.map(d => d.temp);
 
-    // Safely destroy existing chart
+    // Destroy existing chart
     if (window.temperaturChart && typeof window.temperaturChart.destroy === 'function') {
       window.temperaturChart.destroy();
     }
@@ -661,6 +673,7 @@ async function loadStatistics() {
         scales: {
           y: {
             beginAtZero: false,
+            max: Math.max(...temperatures) + 5, // Prevent extreme scaling
             title: {
               display: true,
               text: 'Temperatur (°C)'
@@ -680,7 +693,6 @@ async function loadStatistics() {
 
   } catch (err) {
     el.innerHTML = '<p class="text-danger">Fehler beim Laden der Statistik: ' + err.message + '</p>';
-    // Safely destroy chart
     if (window.temperaturChart && typeof window.temperaturChart.destroy === 'function') {
       window.temperaturChart.destroy();
       window.temperaturChart = null;
@@ -690,48 +702,37 @@ async function loadStatistics() {
 
 // ========== INITIALIZATION ==========
 document.addEventListener('DOMContentLoaded', () => {
-  // Auth event listeners
   document.getElementById('toggleAuth').addEventListener('click', toggleAuthMode);
   document.getElementById('backToLogin').addEventListener('click', toggleAuthMode);
   document.getElementById('authForm').addEventListener('submit', handleAuthSubmit);
-  
-  // Weather form
   document.getElementById('weatherForm').addEventListener('submit', handleWeatherSubmit);
-  
-  // Edit form
   document.getElementById('editForm').addEventListener('submit', handleEditSubmit);
-
-  // Close modal
   document.getElementById('closeEditModalBtn').addEventListener('click', closeEditModal);
 
   showSection('home');
 
-  // Dynamic edit/delete buttons
-  // Dynamic edit/delete buttons (event delegation)
-document.addEventListener('click', async (e) => {
-  console.log('Clicked:', e.target, 'Closest delete-btn:', e.target.closest('.delete-btn'));
-
-  const deleteBtn = e.target.closest('.delete-btn');
-  const editBtn = e.target.closest('.edit-btn');
-
-  if (deleteBtn) {
-    const id = parseInt(deleteBtn.dataset.id);
-    if (isNaN(id) || id <= 0) {
-      alert('Ungültige ID');
+  // Event delegation for dynamic buttons
+  document.addEventListener('click', (e) => {
+    const deleteBtn = e.target.closest('.delete-btn');
+    if (deleteBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const id = deleteBtn.dataset.id;
+      // disable to avoid double-invocation from accidental double-clicks
+      try { deleteBtn.disabled = true; } catch (e) {}
+      Promise.resolve(deleteEntry(id)).finally(() => { try { deleteBtn.disabled = false; } catch(e){} });
       return;
     }
-    await deleteEntry(id);
-  }
 
-  if (editBtn) {
-    const id = parseInt(editBtn.dataset.id);
-    if (isNaN(id) || id <= 0) {
-      alert('Ungültige ID');
+    const editBtn = e.target.closest('.edit-btn');
+    if (editBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const id = editBtn.dataset.id;
+      editEntry(id);
       return;
     }
-    await editEntry(id);
-  }
-});
+  });
 });
 </script>
 

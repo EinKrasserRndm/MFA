@@ -126,6 +126,32 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ================== GET SINGLE WEATHER ==================
+  if (req.method === 'GET' && path.startsWith('/weather/')) {
+    const id = parseInt(path.split('/')[2], 10);
+    if (isNaN(id) || id <= 0) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ungültige ID' }));
+      return;
+    }
+
+    try {
+      const entry = await prisma.weather.findUnique({ where: { id } });
+      if (!entry) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Eintrag nicht gefunden' }));
+        return;
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(entry));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
   // ================== POST WEATHER ==================
   if (req.method === 'POST' && path === '/weather') {
     let body = '';
@@ -165,8 +191,8 @@ const server = http.createServer(async (req, res) => {
 
   // ================== UPDATE WEATHER ==================
   if (req.method === 'PUT' && path.startsWith('/weather/')) {
-    const id = parseInt(path.split('/')[2], 10);
-    if (isNaN(id) || id <= 0) {
+    const id = path.split('/')[2];
+    if (!id || id.trim() === '') {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Ungültige ID' }));
       return;
@@ -177,12 +203,12 @@ const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       try {
         const data = JSON.parse(body);
-        
+
         // Validate the update data (allow partial updates)
         if (!data.date) {
           throw new Error('Datum ist erforderlich');
         }
-        
+
         const updateData = {
           date: new Date(data.date),
           temperature: Number(data.temperature),
@@ -216,8 +242,8 @@ const server = http.createServer(async (req, res) => {
   // ================== DELETE WEATHER ==================
   if (req.method === 'DELETE' && path.startsWith('/weather/')) {
     console.log(`DELETE-Anfrage erhalten: ${req.url}`);
-    const id = parseInt(path.split('/')[2], 10);
-    if (isNaN(id) || id <= 0) {
+    const id = path.split('/')[2];
+    if (!id || id.trim() === '') {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Ungültige ID' }));
       return;
